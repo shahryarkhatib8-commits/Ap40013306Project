@@ -4,6 +4,7 @@ import Model.Product;
 import Model.User;
 import Model.Order;
 
+import javax.swing.*;
 import java.io.*;
 import java.util.*;
 
@@ -42,7 +43,7 @@ public class storedata {
         }
 
         usersMap.put(user.getUsername(), user);
-        saveUsers();
+        saveAllData();
         return "SUCCESS";
     }
 
@@ -65,12 +66,12 @@ public class storedata {
 
     public static void addProduct(Product product) {
         productsList.add(product);
-        saveProducts();
+        saveAllData();
     }
 
     public static void removeProduct(String id) {
         productsList.removeIf(p -> p.getId().equals(id));
-        saveProducts();
+        saveAllData();
     }
 
     public static Queue<Order> getOrders() {
@@ -79,7 +80,63 @@ public class storedata {
 
     public static void addOrder(Order order) {
         orderQueue.add(order);
-        saveOrders();
+        saveAllData();
+    }
+
+    public static void processNextOrder(JFrame adminFrame) {
+        if (orderQueue.isEmpty()) {
+            JOptionPane.showMessageDialog(adminFrame, "No pending orders.");
+            return;
+        }
+
+        Order currentOrder = orderQueue.peek();
+        User customer = usersMap.get(currentOrder.getUsername());
+
+        if (customer == null) {
+            orderQueue.poll();
+            saveAllData();
+            return;
+        }
+
+        StringBuilder msg = new StringBuilder();
+        msg.append("User: ").append(customer.getUsername()).append("\n");
+        msg.append("Total: ").append(currentOrder.getTotalPrice()).append("\n");
+        msg.append("Items:\n");
+        for (Product p : currentOrder.getItems()) {
+            msg.append("- ").append(p.getName()).append(" (ID: ").append(p.getId()).append(")\n");
+        }
+        msg.append("\nApprove this order?");
+
+        int choice = JOptionPane.showConfirmDialog(adminFrame, msg.toString(), "Process Order", JOptionPane.YES_NO_OPTION);
+
+        if (choice == JOptionPane.YES_OPTION) {
+            if (customer.getBalance() >= currentOrder.getTotalPrice()) {
+                boolean stockIssue = false;
+                for (Product item : currentOrder.getItems()) {
+                    Product warehouseProd = getProductById(item.getId());
+                    if (warehouseProd != null && warehouseProd.getStockQuantity() > 0) {
+                        warehouseProd.setStockQuantity(warehouseProd.getStockQuantity() - 1);
+                    } else {
+                        stockIssue = true;
+                    }
+                }
+
+                if (!stockIssue) {
+                    customer.setBalance(customer.getBalance() - currentOrder.getTotalPrice());
+                    orderQueue.poll();
+                    saveAllData();
+                    JOptionPane.showMessageDialog(adminFrame, "Order Approved.");
+                } else {
+                    JOptionPane.showMessageDialog(adminFrame, "Error: Insufficient Stock.");
+                }
+            } else {
+                JOptionPane.showMessageDialog(adminFrame, "Error: Insufficient User Balance.");
+            }
+        } else {
+            orderQueue.poll();
+            saveAllData();
+            JOptionPane.showMessageDialog(adminFrame, "Order Rejected and Removed from File.");
+        }
     }
 
     public static void saveAllData() {
@@ -170,7 +227,7 @@ public class storedata {
     }
 
     private static void saveOrders() {
-        try (PrintWriter writer = new PrintWriter(new FileWriter(ORDERS_FILE))) {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(ORDERS_FILE, false))) {
             for (Order order : orderQueue) {
                 writer.println(order.toCSV());
             }
