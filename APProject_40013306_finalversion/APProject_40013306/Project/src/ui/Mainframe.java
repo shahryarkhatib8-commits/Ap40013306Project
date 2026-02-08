@@ -374,6 +374,7 @@ public class Mainframe extends JFrame {
         if (customer == null) {
             JOptionPane.showMessageDialog(this, "Error: Customer not found!");
             storedata.orderQueue.poll();
+            storedata.saveAllData();
             return;
         }
 
@@ -388,6 +389,7 @@ public class Mainframe extends JFrame {
             if (customer.getBalance() < order.getTotalPrice()) {
                 JOptionPane.showMessageDialog(this, "User does not have enough balance anymore!\nOrder Rejected.");
                 storedata.orderQueue.poll();
+                storedata.saveAllData();
                 return;
             }
 
@@ -398,6 +400,7 @@ public class Mainframe extends JFrame {
                     if (warehouseItem.getId().equals(orderItem.getId())) {
                         int newStock = warehouseItem.getStockQuantity() - 1;
                         warehouseItem.setStockQuantity(Math.max(0, newStock));
+                        break;
                     }
                 }
             }
@@ -408,7 +411,9 @@ public class Mainframe extends JFrame {
             JOptionPane.showMessageDialog(this, "Order Approved & Processed.");
         } else {
             storedata.orderQueue.poll();
+            storedata.saveAllData();
             JOptionPane.showMessageDialog(this, "Order Rejected.");
         }
     }
+
 }
